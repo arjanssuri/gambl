@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/docs",
+      "destination": "https://na-99ad505b.mintlify.dev/docs"
+    },
+    {
+      "source": "/docs/:match*",
+      "destination": "https://na-99ad505b.mintlify.dev/docs/:match*"
+    }
+  ]
+}
