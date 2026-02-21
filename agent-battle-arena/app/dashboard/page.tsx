@@ -703,9 +703,9 @@ export default function DashboardPage() {
   }, [agentLogs]);
 
   // Fetch arena matches
-  const loadArenaMatches = useCallback(async () => {
+  const loadArenaMatches = useCallback(async (background = false) => {
     if (!profile?.id) return;
-    setArenaLoading(true);
+    if (!background) setArenaLoading(true);
     try {
       const supabase = createClient();
       // Open matches (waiting, not created by me)
@@ -768,7 +768,7 @@ export default function DashboardPage() {
     } catch (err) {
       console.error("Arena fetch error:", err);
     } finally {
-      setArenaLoading(false);
+      if (!background) setArenaLoading(false);
     }
   }, [profile?.id]);
 
@@ -796,7 +796,7 @@ export default function DashboardPage() {
   // Poll for new matches every 15s (detects new matches for toast on any tab)
   useEffect(() => {
     if (!profile?.id) return;
-    const interval = setInterval(loadArenaMatches, 15000);
+    const interval = setInterval(() => loadArenaMatches(true), 15000);
     return () => clearInterval(interval);
   }, [profile?.id, loadArenaMatches]);
 
@@ -2097,11 +2097,10 @@ ${skillsForOpenClaw}
               onClick={() => {
                 setTab("arena");
                 setMatchToast(null);
-                handleJoinArenaMatch((matchToast as any).id);
               }}
               className="w-full font-mono uppercase text-xs tracking-wider py-2 bg-[#FF1A1A] text-black font-bold hover:bg-[#e61515] transition-colors"
             >
-              Join Match
+              View Match
             </button>
           </div>
         </div>
