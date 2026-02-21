@@ -40,6 +40,7 @@ export class SimulationMaterial extends THREE.ShaderMaterial {
       uniform float uNoiseIntensity;
       uniform float uTimeScale;
       uniform float uLoopPeriod;
+      uniform float uGridMix;
       varying vec2 vUv;
 
       ${periodicNoiseGLSL}
@@ -62,8 +63,11 @@ export class SimulationMaterial extends THREE.ShaderMaterial {
         
         // Apply distortion to original position
         vec3 distortion = vec3(displacementX, displacementY, displacementZ) * uNoiseIntensity;
-        vec3 finalPos = originalPos + distortion;
-        
+        vec3 organicPos = originalPos + distortion;
+
+        // Mix between grid (original) and organic (displaced) based on uGridMix
+        vec3 finalPos = mix(organicPos, originalPos, uGridMix);
+
         gl_FragColor = vec4(finalPos, 1.0);
       }`,
       uniforms: {
@@ -72,7 +76,8 @@ export class SimulationMaterial extends THREE.ShaderMaterial {
         uNoiseScale: { value: 1.0 },
         uNoiseIntensity: { value: 0.5 },
         uTimeScale: { value: 1 },
-        uLoopPeriod: { value: 24.0 }
+        uLoopPeriod: { value: 24.0 },
+        uGridMix: { value: 1.0 }
       }
     })
   }

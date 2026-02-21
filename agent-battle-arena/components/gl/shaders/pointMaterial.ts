@@ -91,31 +91,20 @@ export class DofPointsMaterial extends THREE.ShaderMaterial {
       void main() {
         vec2 cxy = 2.0 * gl_PointCoord - 1.0;
 
-        // Define triangle vertices (equilateral triangle)
-        vec2 p0 = vec2(0.0, -0.8);     // top tip (flipped Y)
-        vec2 p1 = vec2(-0.7, 0.4);     // bottom left (flipped Y)
-        vec2 p2 = vec2(0.7, 0.4);      // bottom right (flipped Y)
-        
         float sdf = sdCircle(cxy, 0.5);
-        
+
         if (sdf > 0.0) discard;
 
-        // Calculate distance from center for reveal effect
-        float distanceFromCenter = length(vWorldPosition.xz);
-        
-        // Add noise to the reveal threshold for organic edge
-        float noiseValue = periodicNoise(vInitialPosition * 4.0, 0.0);
-        float revealThreshold = uRevealFactor + noiseValue * 0.3;
-        
-        // Create reveal mask based on distance from center (inverted for proper reveal)
-        float revealMask = 1.0 - smoothstep(revealThreshold - 0.2, revealThreshold + 0.1, distanceFromCenter);
-        
         // Calculate sparkle brightness multiplier
         float sparkleBrightness = sparkleNoise(vInitialPosition, uTime);
-        
-        float alpha = (1.04 - clamp(vDistance, 0.0, 1.0)) * clamp(smoothstep(-0.5, 0.25, vPosY), 0.0, 1.0) * uOpacity * revealMask * uRevealProgress * sparkleBrightness;
 
-        gl_FragColor = vec4(vec3(1.0), mix(alpha, sparkleBrightness - 1.1, uTransition));
+        // DOF + sparkle alpha with simple fade-in via uRevealProgress
+        float dofAlpha = 1.04 - clamp(vDistance, 0.0, 1.0);
+        float alpha = dofAlpha * uOpacity * uRevealProgress * sparkleBrightness;
+
+        // Red particles (#FF1A1A ≈ 1.0, 0.1, 0.1)
+        vec3 color = vec3(1.0, 0.1, 0.1);
+        gl_FragColor = vec4(color, mix(alpha, sparkleBrightness - 1.1, uTransition));
       }`,
       uniforms: {
         positions: { value: null },

@@ -1,7 +1,7 @@
 "use client";
 
 import * as THREE from "three";
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useMemo, useState, useRef } from "react";
 import { createPortal, useFrame } from "@react-three/fiber";
 import { useFBO } from "@react-three/drei";
 
@@ -40,10 +40,9 @@ export function Particles({
   manualTime?: number;
   introspect?: boolean;
 }) {
-  // Reveal animation state
-  const revealStartTime = useRef<number | null>(null);
-  const [isRevealing, setIsRevealing] = useState(true);
-  const revealDuration = 3.5; // seconds
+  // Grid → organic dissolve animation state
+  const gridStartTime = useRef<number | null>(null);
+  const gridDuration = 3.0; // seconds to dissolve from grid to organic
   // Create simulation material with scale parameter
   const simulationMaterial = useMemo(() => {
     return new SimulationMaterial(planeScale);
@@ -101,28 +100,22 @@ export function Particles({
     // Use manual time if enabled, otherwise use elapsed time
     const currentTime = useManualTime ? manualTime : state.clock.elapsedTime;
 
-    // Initialize reveal start time on first frame
-    if (revealStartTime.current === null) {
-      revealStartTime.current = currentTime;
+    // Initialize grid dissolve start time on first frame
+    if (gridStartTime.current === null) {
+      gridStartTime.current = currentTime;
     }
 
-    // Calculate reveal progress
-    const revealElapsed = currentTime - revealStartTime.current;
-    const revealProgress = Math.min(revealElapsed / revealDuration, 1.0);
+    const elapsed = currentTime - gridStartTime.current;
 
-    // Ease out the reveal animation
-    const easedProgress = 1 - Math.pow(1 - revealProgress, 3);
+    // Grid → organic dissolve: starts at 1 (pure grid), eases to 0 (organic)
+    const gridLinear = Math.max(0, 1 - elapsed / gridDuration);
+    const gridMix = gridLinear * gridLinear; // ease-in for smooth dissolve
+    simulationMaterial.uniforms.uGridMix.value = gridMix;
 
-    // Map progress to reveal factor (0 = fully hidden, higher values = more revealed)
-    // We want to start from center (0) and expand outward (higher values)
-    const revealFactor = easedProgress * 4.0; // Doubled the radius for larger coverage
-
-    if (revealProgress >= 1.0 && isRevealing) {
-      setIsRevealing(false);
-    }
+    // Simple fade-in over 0.5s
+    const fadeIn = Math.min(elapsed / 0.5, 1.0);
 
     dofPointsMaterial.uniforms.uTime.value = currentTime;
-
     dofPointsMaterial.uniforms.uFocus.value = focus;
     dofPointsMaterial.uniforms.uBlur.value = aperture;
 
@@ -142,8 +135,8 @@ export function Particles({
     // Update point material uniforms
     dofPointsMaterial.uniforms.uPointSize.value = pointSize;
     dofPointsMaterial.uniforms.uOpacity.value = opacity;
-    dofPointsMaterial.uniforms.uRevealFactor.value = revealFactor;
-    dofPointsMaterial.uniforms.uRevealProgress.value = easedProgress;
+    dofPointsMaterial.uniforms.uRevealFactor.value = 10.0; // bypass radial reveal
+    dofPointsMaterial.uniforms.uRevealProgress.value = fadeIn;
   });
 
   return (
