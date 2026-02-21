@@ -19,6 +19,16 @@ import { saveAgentNFT, getProfileData, clearAgentNFT } from "@/lib/auth";
 
 type Status = "idle" | "connecting" | "minting" | "loading" | "error";
 
+interface SupabaseStats {
+  wins: number;
+  losses: number;
+  total_matches: number;
+}
+
+function computeElo(wins: number, losses: number): number {
+  return (wins - losses) * 15 + 1000;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function truncateAddr(addr: string): string {
@@ -29,10 +39,10 @@ function formatTimestamp(ts: bigint): string {
   return new Date(Number(ts) * 1000).toLocaleString();
 }
 
-function winRateDisplay(profile: AgentProfile): string {
-  const total = Number(profile.wins) + Number(profile.losses);
+function winRateDisplay(wins: number, losses: number): string {
+  const total = wins + losses;
   if (total === 0) return "—";
-  return ((Number(profile.wins) / total) * 100).toFixed(1) + "%";
+  return ((wins / total) * 100).toFixed(1) + "%";
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -79,9 +89,25 @@ export default function AgentNFTPage() {
   const [successMsg, setSuccessMsg] = useState("");
   const [mintTxHash, setMintTxHash] = useState<string | null>(null);
   const [showMintPrompt, setShowMintPrompt] = useState(false);
+  const [supabaseStats, setSupabaseStats] = useState<SupabaseStats>({ wins: 0, losses: 0, total_matches: 0 });
+
+  // ── Load Supabase wins/losses/elo on mount ──
+  const loadSupabaseStats = useCallback(async () => {
+    try {
+      const p = await getProfileData();
+      if (p) {
+        setSupabaseStats({
+          wins: p.wins || 0,
+          losses: p.losses || 0,
+          total_matches: p.total_matches || 0,
+        });
+      }
+    } catch { /* non-blocking */ }
+  }, []);
 
   // ── Auto-load on mount: use Supabase-saved token + read-only RPC (no wallet needed) ──
   useEffect(() => {
+    loadSupabaseStats();
     if (!AGENT_NFT_ADDRESS) return;
     async function tryAutoLoad() {
       try {
@@ -476,12 +502,12 @@ export default function AgentNFTPage() {
               </div>
             </div>
 
-            {/* Stats grid */}
+            {/* Stats grid — Elo & W/L from Supabase */}
             <div className="grid grid-cols-2 gap-px border border-[#424242]">
-              <StatBox label="Rating" value={profile.rating?.toString() ?? "—"} accent />
-              <StatBox label="Wins" value={profile.wins?.toString() ?? "0"} />
-              <StatBox label="Losses" value={profile.losses?.toString() ?? "0"} />
-              <StatBox label="Win Rate" value={winRateDisplay(profile)} />
+              <StatBox label="Elo Rating" value={computeElo(supabaseStats.wins, supabaseStats.losses).toString()} accent />
+              <StatBox label="Wins" value={supabaseStats.wins.toString()} />
+              <StatBox label="Losses" value={supabaseStats.losses.toString()} />
+              <StatBox label="Win Rate" value={winRateDisplay(supabaseStats.wins, supabaseStats.losses)} />
             </div>
 
             {/* Battle History */}
@@ -542,7 +568,7 @@ export default function AgentNFTPage() {
                 Switch Wallet
               </button>
               <button
-                onClick={() => client && loadProfile(client, tokenId)}
+                onClick={() => { loadSupabaseStats(); client && loadProfile(client, tokenId); }}
                 disabled={status !== "idle"}
                 className="border border-[#2a2a2a] text-white/25 text-xs uppercase tracking-widest px-5 py-2.5 hover:border-[#424242] hover:text-white/50 transition-colors disabled:opacity-40 ml-auto"
               >
