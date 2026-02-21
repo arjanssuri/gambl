@@ -98,7 +98,7 @@ export default function DashboardPage() {
   const [arenaAction, setArenaAction] = useState<string | null>(null);
   const [spectatingMatch, setSpectatingMatch] = useState<string | null>(null);
   const [matchToast, setMatchToast] = useState<any | null>(null);
-  const knownMatchIdsRef = useRef<Set<string>>(new Set());
+  const knownMatchIdsRef = useRef<Set<string> | null>(null);
   const [spectatorFullscreen, setSpectatorFullscreen] = useState(false);
   const [stakeAmount, setStakeAmount] = useState("all");
   const [maxTurns, setMaxTurns] = useState("all");
@@ -718,14 +718,17 @@ export default function DashboardPage() {
         .limit(20);
       const openList = open || [];
       // Detect new matches for toast notification
-      if (knownMatchIdsRef.current.size > 0) {
-        const newMatch = openList.find((m: any) => !knownMatchIdsRef.current.has(m.id));
+      if (knownMatchIdsRef.current === null) {
+        // First load — seed known IDs, no toast
+        knownMatchIdsRef.current = new Set(openList.map((m: any) => m.id));
+      } else {
+        const newMatch = openList.find((m: any) => !knownMatchIdsRef.current!.has(m.id));
         if (newMatch) {
           setMatchToast(newMatch);
           setTimeout(() => setMatchToast((prev: any) => prev?.id === newMatch.id ? null : prev), 5000);
         }
+        openList.forEach((m: any) => knownMatchIdsRef.current!.add(m.id));
       }
-      openList.forEach((m: any) => knownMatchIdsRef.current.add(m.id));
       setArenaMatches(openList);
 
       // My matches (active or waiting that I created, or finished recently)
@@ -2095,12 +2098,14 @@ ${skillsForOpenClaw}
             </div>
             <button
               onClick={() => {
+                const id = (matchToast as any)?.id;
                 setTab("arena");
                 setMatchToast(null);
+                if (id) handleJoinArenaMatch(id);
               }}
               className="w-full font-mono uppercase text-xs tracking-wider py-2 bg-[#FF1A1A] text-black font-bold hover:bg-[#e61515] transition-colors"
             >
-              View Match
+              Join Match
             </button>
           </div>
         </div>
