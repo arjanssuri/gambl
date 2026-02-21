@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { callAI } from "@/lib/ai-client";
+import { callAIWithMetrics } from "@/lib/ai-client";
 import {
   buildSystemPrompt,
   parseMovesFromAIResponse,
@@ -43,13 +43,17 @@ export async function POST(req: NextRequest) {
     let moves: any[] = [];
     let fallbackUsed = false;
     let aiResponse = "";
+    let zgInference: any = null;
 
     try {
-      aiResponse = await callAI(model, apiKey, systemPrompt, userMessage, {
+      const aiResult = await callAIWithMetrics(model, apiKey, systemPrompt, userMessage, {
         timeoutMs: 20_000,
         maxOutputTokens: 2048,
         messages: conversationHistory || [],
       });
+
+      aiResponse = aiResult.text;
+      zgInference = aiResult.zgInference;
 
       const parsed = parseMovesFromAIResponse(aiResponse);
       if (parsed) {
@@ -68,7 +72,7 @@ export async function POST(req: NextRequest) {
       moves.push({ type: "end_turn" });
     }
 
-    return NextResponse.json({ moves, fallbackUsed, aiResponse });
+    return NextResponse.json({ moves, fallbackUsed, aiResponse, zgInference });
   } catch (err: any) {
     console.error("[ai-plan] Error:", err);
     return NextResponse.json(

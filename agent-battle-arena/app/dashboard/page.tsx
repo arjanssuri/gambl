@@ -114,6 +114,8 @@ export default function DashboardPage() {
   const [agentRunnerStatus, setAgentRunnerStatus] = useState<any>(null);
   const [agentLogs, setAgentLogs] = useState<string[]>([]);
   const agentLogsRef = useRef<HTMLDivElement>(null);
+  const [zgStatus, setZgStatus] = useState<any>(null);
+  const [zgInferenceLogs, setZgInferenceLogs] = useState<any[]>([]);
   const [spectatorUrlIndex, setSpectatorUrlIndex] = useState(0);
   const [now, setNow] = useState(Date.now());
   const [copied, setCopied] = useState<string | null>(null);
@@ -389,6 +391,22 @@ export default function DashboardPage() {
     }
   }, [settingsStorageKey, agentApiKey, agentSkillsMd, agentModel]);
 
+  // Poll 0G Compute Network status
+  useEffect(() => {
+    if (!profile?.display_name) return;
+    let cancelled = false;
+    async function fetchZgStatus() {
+      try {
+        const res = await fetch("/api/0g-compute/status");
+        const data = await res.json();
+        if (!cancelled && data.status === "ok") setZgStatus(data);
+      } catch { /* non-blocking */ }
+    }
+    fetchZgStatus();
+    const interval = setInterval(fetchZgStatus, 30000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [profile?.display_name]);
+
   // Client-side orchestrated agent loop — 3 fast steps per turn:
   //   1. Fetch state from Supabase directly (no serverless function)
   //   2. Call /api/ai-plan to get moves (serverless, AI-only, ~15s max)
@@ -508,6 +526,11 @@ export default function DashboardPage() {
           }),
         });
         const plan = await planRes.json();
+
+        // Capture 0G inference metadata
+        if (plan.zgInference) {
+          setZgInferenceLogs((prev) => [plan.zgInference, ...prev].slice(0, 20));
+        }
 
         if (agentStoppedRef.current) return;
 
@@ -1792,6 +1815,100 @@ ${skillsForOpenClaw}
                   Reset skills.md
                 </button>
               </div>
+            </div>
+
+            {/* ── 0G Compute Network ── */}
+            <div className="border border-[#424242] bg-[#0a0a0a] p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="font-mono text-sm uppercase tracking-wider text-white/60">
+                  0G Compute Network
+                </h3>
+                <div className="flex items-center gap-2">
+                  <span className={`inline-block size-2 rounded-full ${zgStatus?.connected ? "bg-green-400 shadow-[0_0_6px_rgba(74,222,128,0.5)]" : "bg-white/20"}`} />
+                  <span className="font-mono text-xs text-white/40">
+                    {zgStatus?.connected ? "Connected" : "Connecting…"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                <div className="border border-[#333] bg-black/50 p-3">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-white/30 block mb-1">Providers Online</span>
+                  <span className="text-lg font-mono font-bold text-white">
+                    {zgStatus?.network?.providersOnline ?? "—"}<span className="text-white/30 text-xs">/{zgStatus?.network?.totalProviders ?? "—"}</span>
+                  </span>
+                </div>
+                <div className="border border-[#333] bg-black/50 p-3">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-white/30 block mb-1">GPU Capacity</span>
+                  <span className="text-lg font-mono font-bold text-white">
+                    {zgStatus?.network?.totalGpuCapacity?.toLocaleString() ?? "—"}
+                  </span>
+                </div>
+                <div className="border border-[#333] bg-black/50 p-3">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-white/30 block mb-1">Avg Latency</span>
+                  <span className="text-lg font-mono font-bold text-white">
+                    {zgStatus?.network?.avgLatencyMs ?? "—"}<span className="text-white/30 text-xs">ms</span>
+                  </span>
+                </div>
+                <div className="border border-[#333] bg-black/50 p-3">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-white/30 block mb-1">Network Load</span>
+                  <span className="text-lg font-mono font-bold text-white">
+                    {zgStatus?.network?.networkUtilization
+                      ? `${(zgStatus.network.networkUtilization * 100).toFixed(0)}%`
+                      : "—"}
+                  </span>
+                </div>
+              </div>
+
+              {zgInferenceLogs.length > 0 ? (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-mono text-[10px] uppercase tracking-wider text-white/30">
+                      Recent Inferences (0G Routed)
+                    </span>
+                    <button
+                      onClick={() => setZgInferenceLogs([])}
+                      className="font-mono text-[10px] text-white/20 hover:text-white/40 transition-colors"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <div className="bg-black border border-[#333] divide-y divide-[#1a1a1a] max-h-[200px] overflow-auto">
+                    {zgInferenceLogs.map((inf: any, i: number) => (
+                      <div key={inf.jobId || i} className="px-3 py-2 flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="inline-block size-1.5 rounded-full bg-green-400/60 shrink-0" />
+                          <span className="font-mono text-[11px] text-white/50 truncate">
+                            {inf.providerName}
+                          </span>
+                          <span className="font-mono text-[10px] text-white/20 hidden sm:inline">
+                            {inf.providerId?.slice(0, 16)}…
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-4 shrink-0">
+                          <span className="font-mono text-[10px] text-white/30">
+                            {(inf.inputTokens || 0) + (inf.outputTokens || 0)} tok
+                          </span>
+                          <span className="font-mono text-[10px] text-white/40">
+                            {inf.latencyMs}ms
+                          </span>
+                          <span className="font-mono text-[10px] text-[#FF1A1A]/60">
+                            {inf.settlement?.cost?.toFixed(4)} 0G
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <p className="font-mono text-[10px] text-white/20 text-center py-3">
+                  No inferences yet. Start a match to see 0G-routed inference data.
+                </p>
+              )}
+
+              <p className="font-mono text-[10px] text-white/15 mt-4">
+                Inference requests are routed through 0G&apos;s decentralized compute marketplace. Providers are selected by latency and cost. Settlement is on-chain.
+              </p>
             </div>
 
             <div className="border border-[#424242] bg-[#0a0a0a] p-6">

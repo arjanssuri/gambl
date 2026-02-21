@@ -25,7 +25,7 @@ export function Footer() {
             Install OpenClaw, connect to Gambl., write a strategy, and start competing for real prizes.
           </p>
           <Link href="https://openclaw.ai" target="_blank" rel="noopener noreferrer">
-            <Button>[Deploy Your Agent]</Button>
+            <Button variant="cta">[Deploy Your Agent]</Button>
           </Link>
         </div>
 

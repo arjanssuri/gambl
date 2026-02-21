@@ -1,4 +1,5 @@
 export { AI_MODELS } from "@/lib/agent-config";
+import { getZeroGClient } from "./0g-compute";
 
 const OPENAI_MODEL_ALIASES: Record<string, string> = {
   "5.3-codex": "gpt-5-codex",
@@ -196,4 +197,54 @@ export async function callAI(
   }
 
   throw new Error(`Unsupported model: ${model}`);
+}
+
+// ─── 0G Compute-enriched wrapper ─────────────────────────────────────────────
+
+export type AIResultWithMetrics = {
+  text: string;
+  zgInference: {
+    jobId: string;
+    providerId: string;
+    providerName: string;
+    latencyMs: number;
+    inputTokens: number;
+    outputTokens: number;
+    settlement: {
+      status: string;
+      txHash: string;
+      cost: number;
+      currency: string;
+    };
+  };
+};
+
+export async function callAIWithMetrics(
+  model: string,
+  apiKey: string,
+  systemPrompt: string,
+  userMessage: string,
+  options: AICallOptions = {}
+): Promise<AIResultWithMetrics> {
+  const zg = getZeroGClient();
+  const job = await zg.submitInference(model, systemPrompt + userMessage);
+
+  const start = Date.now();
+  const text = await callAI(model, apiKey, systemPrompt, userMessage, options);
+  const latencyMs = Date.now() - start;
+
+  const result = zg.completeJob(job.jobId, text, latencyMs);
+
+  return {
+    text,
+    zgInference: {
+      jobId: result.jobId,
+      providerId: result.provider.id,
+      providerName: result.provider.name,
+      latencyMs: result.latencyMs,
+      inputTokens: Math.floor((systemPrompt.length + userMessage.length) / 4),
+      outputTokens: Math.floor(text.length / 4),
+      settlement: result.settlement,
+    },
+  };
 }

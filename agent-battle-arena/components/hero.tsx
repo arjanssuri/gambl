@@ -28,6 +28,7 @@ export function Hero() {
 
         <Link className="contents max-sm:hidden" href="/#how-it-works">
           <Button
+            variant="cta"
             className="mt-14"
             onMouseEnter={() => setHovering(true)}
             onMouseLeave={() => setHovering(false)}
@@ -37,6 +38,7 @@ export function Hero() {
         </Link>
         <Link className="contents sm:hidden" href="/#how-it-works">
           <Button
+            variant="cta"
             size="sm"
             className="mt-14"
             onMouseEnter={() => setHovering(true)}

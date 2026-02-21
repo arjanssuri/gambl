@@ -11,6 +11,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: "bg-background border-primary text-primary-foreground [&>[data-border]]:bg-primary [box-shadow:inset_0_0_54px_0px_var(--tw-shadow-color)] shadow-[#EBB800] hover:shadow-[#EBB800]/80",
+        cta: "bg-background border-[#FF1A1A] text-white [&>[data-border]]:bg-[#FF1A1A] [box-shadow:inset_0_0_54px_0px_var(--tw-shadow-color)] shadow-[#FF1A1A] hover:shadow-[#FF1A1A]/80",
       },
       size: {
         default: "h-16 px-6 text-base",
