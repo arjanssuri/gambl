@@ -51,6 +51,7 @@
     "cmdk": "1.0.4",
     "date-fns": "4.1.0",
     "embla-carousel-react": "8.5.1",
+    "ethers": "^6.16.0",
     "expo": "latest",
     "expo-asset": "latest",
     "expo-file-system": "latest",

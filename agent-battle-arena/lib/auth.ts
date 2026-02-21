@@ -123,6 +123,38 @@ export async function getMatches() {
   return data || [];
 }
 
+export async function clearAgentNFT() {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  await supabase
+    .from("profiles")
+    .update({ agent_token_id: null, agent_evm_address: null, updated_at: new Date().toISOString() })
+    .eq("id", user.id);
+}
+
+export async function saveAgentNFT(tokenId: bigint, evmAddress: string) {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({
+      agent_token_id: Number(tokenId),
+      agent_evm_address: evmAddress,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", user.id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
 export async function getTransactions() {
   const supabase = createClient();
   const {

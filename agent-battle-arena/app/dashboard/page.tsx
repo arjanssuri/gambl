@@ -13,6 +13,9 @@ import {
   updateProfile,
   getMatches,
 } from "@/lib/auth";
+import Link from "next/link";
+import { recordBattleIfConnected } from "@/lib/agent-nft";
+import { getAgentAvatarUri } from "@/lib/agent-avatar";
 import { Logo } from "@/components/logo";
 
 // ─── Helper components ───
@@ -84,6 +87,7 @@ export default function DashboardPage() {
   const [matches, setMatches] = useState<any[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
   const [hbarBalance, setHbarBalance] = useState<number | null>(null);
+  const [agentName, setAgentName] = useState<string | null>(null);
   const [tab, setTab] = useState<"arena" | "leaderboard" | "agent">("arena");
 
   // Arena state
@@ -185,8 +189,23 @@ export default function DashboardPage() {
     async function load() {
       setProfileLoading(true);
       try {
-        const p = await getProfileData();
-        if (!cancelled) setProfile(p);
+        let p = await getProfileData();
+        // Sync NFT token from localStorage if Supabase profile is missing it
+        if (p && !p.agent_token_id) {
+          const localToken = localStorage.getItem("gambl_agent_tokenId");
+          const localAddr = localStorage.getItem("gambl_agent_address");
+          if (localToken && localAddr) {
+            try {
+              const { saveAgentNFT } = await import("@/lib/auth");
+              p = await saveAgentNFT(BigInt(localToken), localAddr);
+            } catch { /* non-blocking */ }
+          }
+        }
+        if (!cancelled) {
+          setProfile(p);
+          const name = localStorage.getItem("gambl_agent_name");
+          if (name) setAgentName(name);
+        }
       } catch (err) {
         console.error("Profile fetch error:", err);
       } finally {
@@ -453,6 +472,13 @@ export default function DashboardPage() {
           if (agentPollingRef.current) { clearInterval(agentPollingRef.current); agentPollingRef.current = null; }
           setAgentRunnerStatus({ matchId, status: "finished", running: false, lastResult: state, lastError: null });
           setAgentWakeMessage(`Game over for match ${matchId.slice(0, 8)}...`);
+          // Record battle result on-chain if user has an iNFT and EVM wallet connected
+          const tokenId = profile?.agent_token_id;
+          if (tokenId != null) {
+            const won = state.winner_idx === state.your_player_index;
+            const matchNum = parseInt(matchId.replace(/-/g, "").slice(0, 8), 16) || 0;
+            recordBattleIfConnected(tokenId, matchNum, won);
+          }
           return;
         }
 
@@ -1173,6 +1199,12 @@ ${skillsForOpenClaw}
               {t}
             </button>
           ))}
+          <Link
+            href="/dashboard/agent-nft"
+            className="font-mono uppercase text-xs tracking-wider px-6 py-3 border-b-2 border-transparent text-white/40 hover:text-[#FF1A1A] hover:border-[#FF1A1A]/40 transition-colors"
+          >
+            NFT
+          </Link>
         </div>
 
         {/* Tab content */}
@@ -1180,8 +1212,30 @@ ${skillsForOpenClaw}
           <div className="space-y-8">
             {/* Match controls */}
             <div className="flex items-center justify-between flex-wrap gap-4">
-              <div>
-                <h2 className="font-mono text-sm uppercase tracking-wider text-white/60">Multiplayer Arena</h2>
+              <div className="flex items-center gap-3">
+                {profile?.agent_token_id != null && (
+                  <Link href="/dashboard/agent-nft" title={agentName ?? `Agent #${profile.agent_token_id}`}>
+                    <img
+                      src={getAgentAvatarUri(profile.agent_token_id, agentName ?? "")}
+                      alt="Agent NFT"
+                      className="w-10 h-10 rounded border border-white/10 hover:border-white/30 transition-colors"
+                    />
+                  </Link>
+                )}
+                <div>
+                  <h2 className="font-mono text-sm uppercase tracking-wider text-white/60">Multiplayer Arena</h2>
+                  {profile?.agent_token_id != null ? (
+                    <div className="font-mono text-xs text-white/40 mt-0.5">
+                      <Link href="/dashboard/agent-nft" className="hover:text-white/70 transition-colors">
+                        {agentName ?? `Agent #${profile.agent_token_id}`}
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="font-mono text-xs text-red-400/70 mt-1">
+                      No Agent NFT — <Link href="/dashboard/agent-nft" className="underline underline-offset-2 hover:text-red-300">mint one to play</Link>
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="flex items-center gap-3 flex-wrap">
                 {/* Stake selector */}
@@ -1384,7 +1438,15 @@ ${skillsForOpenClaw}
                 </div>
                 <iframe
                   key={`${spectatingMatch}-${spectatorBaseUrl}`}
-                  src={`${spectatorBaseUrl}/spectate.html#match_id=${spectatingMatch}&api_token=${profile.api_token}&supabase_url=${process.env.NEXT_PUBLIC_SUPABASE_URL}&anon_key=${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`}
+                  src={(() => {
+                    const match = myArenaMatches.find((m: any) => m.id === spectatingMatch);
+                    const myIdx = match?.my_player_index ?? 0;
+                    const myName = encodeURIComponent(profile.display_name || "Player");
+                    const oppName = encodeURIComponent(match?.opponent_name || "Opponent");
+                    const p0 = myIdx === 0 ? myName : oppName;
+                    const p1 = myIdx === 1 ? myName : oppName;
+                    return `${spectatorBaseUrl}/spectate.html#match_id=${spectatingMatch}&api_token=${profile.api_token}&supabase_url=${process.env.NEXT_PUBLIC_SUPABASE_URL}&anon_key=${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}&p0_name=${p0}&p1_name=${p1}`;
+                  })()}
                   className={spectatorFullscreen ? "flex-1 w-full border-0" : "w-full h-[600px] border-0"}
                   allow="accelerometer; autoplay; fullscreen"
                   onError={() => {
