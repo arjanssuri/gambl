@@ -155,6 +155,16 @@ export async function saveAgentNFT(tokenId: bigint, evmAddress: string) {
   return data;
 }
 
+export async function saveAgentConfig(model: string, skillsMd: string) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  await supabase
+    .from("profiles")
+    .update({ agent_model: model, agent_skills_md: skillsMd, updated_at: new Date().toISOString() })
+    .eq("id", user.id);
+}
+
 export async function getTransactions() {
   const supabase = createClient();
   const {

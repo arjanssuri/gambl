@@ -12,6 +12,7 @@ import {
   getProfileData,
   updateProfile,
   getMatches,
+  saveAgentConfig,
 } from "@/lib/auth";
 import Link from "next/link";
 import { recordBattleIfConnected } from "@/lib/agent-nft";
@@ -225,42 +226,48 @@ export default function DashboardPage() {
     return () => { cancelled = true; };
   }, [user]);
 
-  // Load per-user local agent settings
+  // Load agent settings: Supabase for model + skills, localStorage for API key
   useEffect(() => {
-    if (!settingsStorageKey) {
+    if (!settingsStorageKey || !profile) {
       setAgentSettingsLoaded(false);
       return;
     }
 
-    try {
-      const raw = localStorage.getItem(settingsStorageKey);
-      if (!raw) {
-        setAgentModel(AI_MODELS[0].id);
-        setAgentApiKey("");
-        setAgentSkillsMd(DEFAULT_SKILLS_MD);
-        setAgentSettingsLoaded(true);
-        return;
-      }
+    // Load model + skills from Supabase profile (synced across devices)
+    if (profile.agent_model) setAgentModel(profile.agent_model);
+    if (profile.agent_skills_md) setAgentSkillsMd(profile.agent_skills_md);
 
-      const parsed = JSON.parse(raw);
-      if (parsed?.version === AGENT_SETTINGS_VERSION) {
-        setAgentModel(typeof parsed.model === "string" ? parsed.model : AI_MODELS[0].id);
-        setAgentApiKey(typeof parsed.apiKey === "string" ? parsed.apiKey : "");
-        setAgentSkillsMd(typeof parsed.skillsMd === "string" ? parsed.skillsMd : DEFAULT_SKILLS_MD);
-      } else {
-        setAgentModel(AI_MODELS[0].id);
-        setAgentApiKey("");
-        setAgentSkillsMd(DEFAULT_SKILLS_MD);
-      }
-    } catch (err) {
-      console.error("Failed to load agent settings:", err);
-      setAgentModel(AI_MODELS[0].id);
-      setAgentApiKey("");
-      setAgentSkillsMd(DEFAULT_SKILLS_MD);
-    } finally {
-      setAgentSettingsLoaded(true);
-    }
-  }, [settingsStorageKey]);
+    // Load API key from localStorage only (never leaves browser)
+    try {
+      const savedKey = localStorage.getItem(`gambl-agent-apikey:${profile.id}`);
+      if (savedKey) setAgentApiKey(savedKey);
+    } catch { /* ignore */ }
+
+    setAgentSettingsLoaded(true);
+  }, [settingsStorageKey, profile]);
+
+  // Auto-save: debounce model + skills to Supabase, API key to localStorage
+  const autoSaveTimer = useRef<NodeJS.Timeout | null>(null);
+  useEffect(() => {
+    if (!agentSettingsLoaded || !profile?.id) return;
+
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => {
+      // API key → localStorage only
+      try {
+        if (agentApiKey.trim()) {
+          localStorage.setItem(`gambl-agent-apikey:${profile.id}`, agentApiKey.trim());
+        } else {
+          localStorage.removeItem(`gambl-agent-apikey:${profile.id}`);
+        }
+      } catch { /* ignore */ }
+
+      // Model + skills → Supabase (no secrets)
+      saveAgentConfig(agentModel.trim(), agentSkillsMd.trim()).catch(() => {});
+    }, 1500);
+
+    return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
+  }, [agentModel, agentApiKey, agentSkillsMd, agentSettingsLoaded, profile?.id]);
 
   // Fetch dashboard data when profile is loaded and has display_name
   useEffect(() => {
@@ -369,7 +376,7 @@ export default function DashboardPage() {
   }, [walletDisconnect]);
 
   const handleSaveAgentSettings = useCallback(() => {
-    if (!settingsStorageKey) {
+    if (!profile?.id) {
       setAgentSaveError("Profile not loaded");
       return;
     }
@@ -377,26 +384,20 @@ export default function DashboardPage() {
       setAgentSaveError("Model and API key are required");
       return;
     }
-
+    // Force immediate save (auto-save debounce may not have fired yet)
     try {
-      localStorage.setItem(
-        settingsStorageKey,
-        JSON.stringify({
-          version: AGENT_SETTINGS_VERSION,
-          model: agentModel.trim(),
-          apiKey: agentApiKey.trim(),
-          skillsMd: agentSkillsMd.trim(),
-          updatedAt: new Date().toISOString(),
-        })
-      );
-      setAgentSaveError(null);
-      setAgentSaveMessage("Agent settings saved.");
-    } catch (err) {
-      console.error("Failed to save agent settings:", err);
-      setAgentSaveError("Failed to save settings locally");
-      setAgentSaveMessage(null);
-    }
-  }, [settingsStorageKey, agentApiKey, agentSkillsMd, agentModel]);
+      localStorage.setItem(`gambl-agent-apikey:${profile.id}`, agentApiKey.trim());
+    } catch { /* ignore */ }
+    saveAgentConfig(agentModel.trim(), agentSkillsMd.trim())
+      .then(() => {
+        setAgentSaveError(null);
+        setAgentSaveMessage("Agent settings saved.");
+      })
+      .catch(() => {
+        setAgentSaveError("Failed to save settings");
+        setAgentSaveMessage(null);
+      });
+  }, [profile?.id, agentApiKey, agentSkillsMd, agentModel]);
 
   // Poll 0G Compute Network status
   useEffect(() => {
@@ -1821,6 +1822,7 @@ ${skillsForOpenClaw}
                 >
                   Reset skills.md
                 </button>
+                <span className="font-mono text-[10px] text-white/20">Auto-saves on change</span>
               </div>
             </div>
 
