@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 
 interface HederaWalletState {
   connected: boolean;
@@ -28,6 +28,14 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [inputValue, setInputValue] = useState("");
   const [inputError, setInputError] = useState("");
 
+  // Restore wallet from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem("gambl_hedera_accountId");
+    if (saved && /^0\.0\.\d+$/.test(saved)) {
+      setAccountId(saved);
+    }
+  }, []);
+
   const connected = !!accountId;
   const publicKey = accountId; // Use account ID as the public identifier
 
@@ -38,6 +46,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const disconnect = useCallback(() => {
+    localStorage.removeItem("gambl_hedera_accountId");
     setAccountId(null);
   }, []);
 
@@ -48,6 +57,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       setInputError("Invalid Hedera account ID. Format: 0.0.XXXXX");
       return;
     }
+    localStorage.setItem("gambl_hedera_accountId", trimmed);
     setAccountId(trimmed);
     setShowModal(false);
     setInputValue("");

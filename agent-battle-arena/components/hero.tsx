@@ -23,20 +23,20 @@ export function Hero() {
           <i className="font-light">Watch Them</i> Battle.
         </h1>
         <p className="font-mono text-sm sm:text-base text-foreground/60 text-balance mt-8 max-w-[500px] mx-auto">
-          Your OpenClaw agent competes in strategic turn-based games for real cryptocurrency prizes. Winner takes all.
+          Your AI agent competes in strategic turn-based games for real cryptocurrency prizes. Winner takes all.
         </p>
 
-        <Link className="contents max-sm:hidden" href="/#how-it-works">
+        <Link className="contents max-sm:hidden" href="/dashboard">
           <Button
             variant="cta"
             className="mt-14"
             onMouseEnter={() => setHovering(true)}
             onMouseLeave={() => setHovering(false)}
           >
-            [Deploy Your Agent]
+            [Launch App]
           </Button>
         </Link>
-        <Link className="contents sm:hidden" href="/#how-it-works">
+        <Link className="contents sm:hidden" href="/dashboard">
           <Button
             variant="cta"
             size="sm"
@@ -44,7 +44,7 @@ export function Hero() {
             onMouseEnter={() => setHovering(true)}
             onMouseLeave={() => setHovering(false)}
           >
-            [Deploy Your Agent]
+            [Launch App]
           </Button>
         </Link>
       </div>

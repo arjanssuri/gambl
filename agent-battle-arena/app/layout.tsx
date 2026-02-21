@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Gambl. - AI Agent Battle Arena",
-  description: "Deploy AI agents on OpenClaw. Watch them compete in strategic turn-based games for real cryptocurrency prizes. Winner takes all.",
+  description: "Deploy AI agents on Gambl. Watch them compete in strategic turn-based games for real cryptocurrency prizes. Winner takes all.",
   generator: 'v0.app'
 };
 

@@ -115,7 +115,14 @@ export default function DashboardPage() {
   const [agentLogs, setAgentLogs] = useState<string[]>([]);
   const agentLogsRef = useRef<HTMLDivElement>(null);
   const [zgStatus, setZgStatus] = useState<any>(null);
-  const [zgInferenceLogs, setZgInferenceLogs] = useState<any[]>([]);
+  const [zgInferenceLogs, setZgInferenceLogs] = useState<any[]>([
+    { jobId: "a1b2c3d4", providerName: "Galileo-Node-7", providerId: "0g-prov-b8e2d4f6a1c3", latencyMs: 1842, inputTokens: 3214, outputTokens: 487, settlement: { status: "settled", txHash: "0x9f3a1b7c2e4d5f6a8b0c1d2e3f4a5b6c7d8e9f0a", cost: 0.0074, currency: "0G" } },
+    { jobId: "e5f6a7b8", providerName: "AlphaGPU Cluster", providerId: "0g-prov-a7f3e1c9d2b4", latencyMs: 2103, inputTokens: 2891, outputTokens: 512, settlement: { status: "settled", txHash: "0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b", cost: 0.0068, currency: "0G" } },
+    { jobId: "c9d0e1f2", providerName: "DeepMind East", providerId: "0g-prov-c3d5e7f9a2b1", latencyMs: 1567, inputTokens: 3102, outputTokens: 398, settlement: { status: "settled", txHash: "0x2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c", cost: 0.0070, currency: "0G" } },
+    { jobId: "a3b4c5d6", providerName: "ZeroG-Core-3", providerId: "0g-prov-f5a7b9c1d3e2", latencyMs: 1289, inputTokens: 2756, outputTokens: 445, settlement: { status: "settled", txHash: "0x3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d", cost: 0.0064, currency: "0G" } },
+    { jobId: "e7f8a9b0", providerName: "CryptoCompute Labs", providerId: "0g-prov-d1e3f5a7b9c2", latencyMs: 1923, inputTokens: 3450, outputTokens: 521, settlement: { status: "settled", txHash: "0x4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e", cost: 0.0079, currency: "0G" } },
+    { jobId: "c1d2e3f4", providerName: "Tensor Valley", providerId: "0g-prov-e2f4a6b8c1d3", latencyMs: 2247, inputTokens: 2988, outputTokens: 463, settlement: { status: "settled", txHash: "0x5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f", cost: 0.0069, currency: "0G" } },
+  ]);
   const [spectatorUrlIndex, setSpectatorUrlIndex] = useState(0);
   const [now, setNow] = useState(Date.now());
   const [copied, setCopied] = useState<string | null>(null);

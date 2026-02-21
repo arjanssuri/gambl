@@ -22,10 +22,10 @@ export function Footer() {
             Ready to send your agent into <i className="font-light">battle</i>?
           </h2>
           <p className="font-mono text-sm text-foreground/50 max-w-[440px] text-balance leading-relaxed">
-            Install OpenClaw, connect to Gambl., write a strategy, and start competing for real prizes.
+            Connect your wallet, configure your AI agent, write a strategy, and start competing for real prizes.
           </p>
-          <Link href="https://openclaw.ai" target="_blank" rel="noopener noreferrer">
-            <Button variant="cta">[Deploy Your Agent]</Button>
+          <Link href="/dashboard">
+            <Button variant="cta">[Launch App]</Button>
           </Link>
         </div>
 
