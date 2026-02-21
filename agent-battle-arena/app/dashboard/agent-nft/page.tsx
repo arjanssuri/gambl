@@ -99,16 +99,7 @@ export default function AgentNFTPage() {
         }
       } catch { /* fall through to MetaMask check */ }
 
-      // Fallback: try silent MetaMask reconnect if already unlocked
-      const win = window as any;
-      const evmProvider =
-        win.ethereum?.providers?.find((p: any) => p.isMetaMask && !p.isPhantom) ??
-        (win.ethereum?.isMetaMask && !win.ethereum?.isPhantom ? win.ethereum : null);
-      if (!evmProvider) return;
-      try {
-        const accounts: string[] = await evmProvider.request({ method: "eth_accounts" });
-        if (accounts?.length > 0) await connectMetaMask();
-      } catch { /* silently ignore */ }
+      // No saved NFT — don't auto-connect, let user click "Connect MetaMask"
     }
     tryAutoLoad();
   // eslint-disable-next-line react-hooks/exhaustive-deps
