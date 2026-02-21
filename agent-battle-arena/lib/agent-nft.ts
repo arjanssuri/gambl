@@ -107,6 +107,28 @@ export async function getEVMSigner(): Promise<ethers.JsonRpcSigner> {
   return provider.getSigner();
 }
 
+/** Force MetaMask to show account picker (used for switching wallets) */
+export async function requestAccountSwitch(): Promise<ethers.JsonRpcSigner> {
+  const win = window as any;
+  let evmProvider = win.ethereum?.providers?.find(
+    (p: any) => p.isMetaMask && !p.isPhantom
+  );
+  if (!evmProvider && win.ethereum?.isMetaMask && !win.ethereum?.isPhantom) {
+    evmProvider = win.ethereum;
+  }
+  if (!evmProvider) throw new Error("MetaMask not found");
+
+  // wallet_requestPermissions forces the account picker popup
+  await evmProvider.request({
+    method: "wallet_requestPermissions",
+    params: [{ eth_accounts: {} }],
+  });
+
+  const provider = new ethers.BrowserProvider(evmProvider);
+  await switchTo0GTestnet();
+  return provider.getSigner();
+}
+
 
 // ─── Main Client ──────────────────────────────────────────────────────────────
 

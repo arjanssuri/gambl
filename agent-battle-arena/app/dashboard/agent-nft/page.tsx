@@ -7,12 +7,13 @@ import {
   AGENT_NFT_ADDRESS,
   OG_TESTNET,
   getEVMSigner,
+  requestAccountSwitch,
   setActiveNFTClient,
   type AgentProfile,
   type BattleRecord,
 } from "@/lib/agent-nft";
 import { getAgentAvatarUri } from "@/lib/agent-avatar";
-import { saveAgentNFT, getProfileData } from "@/lib/auth";
+import { saveAgentNFT, getProfileData, clearAgentNFT } from "@/lib/auth";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -229,6 +230,56 @@ export default function AgentNFTPage() {
   }
 
 
+  // ── Switch Wallet ──────────────────────────────────────────────────────────
+  async function switchWallet() {
+    setStatus("connecting");
+    setErrorMsg("");
+    setSuccessMsg("");
+    try {
+      const signer = await requestAccountSwitch();
+      const addr = await signer.getAddress();
+
+      // Clear old state
+      setClient(null);
+      setTokenId(null);
+      setProfile(null);
+      setBattleHistory(null);
+      setShowMintPrompt(false);
+      setMintTxHash(null);
+      localStorage.removeItem("gambl_agent_tokenId");
+      localStorage.removeItem("gambl_agent_name");
+
+      // Set up new wallet
+      const c = new AgentNFTClient(AGENT_NFT_ADDRESS, signer);
+      setEvmAddress(addr);
+      setClient(c);
+      setActiveNFTClient(c);
+      localStorage.setItem("gambl_agent_address", addr);
+
+      // Scan for tokens on new wallet
+      const tokens = await c.getTokensOf(addr);
+      if (tokens.length > 0) {
+        const tid = tokens[tokens.length - 1];
+        setTokenId(tid);
+        localStorage.setItem("gambl_agent_tokenId", tid.toString());
+        await saveAgentNFT(tid, addr);
+        await loadProfile(c, tid);
+      } else {
+        await clearAgentNFT();
+        setStatus("idle");
+        setShowMintPrompt(true);
+      }
+    } catch (e: any) {
+      if (e.code === 4001) {
+        // User rejected — just go back to idle
+        setStatus("idle");
+      } else {
+        setStatus("error");
+        setErrorMsg(e.message);
+      }
+    }
+  }
+
   // ── Authorize ───────────────────────────────────────────────────────────────
   const isContractMissing = !AGENT_NFT_ADDRESS;
 
@@ -332,15 +383,26 @@ export default function AgentNFTPage() {
                 <p className="text-xs text-white/30 mt-1">Not connected — required to mint</p>
               )}
             </div>
-            {!evmAddress && (
-              <button
-                onClick={connectMetaMask}
-                disabled={status === "connecting" || isContractMissing}
-                className="border border-[#FF1A1A] text-[#FF1A1A] text-xs uppercase tracking-widest px-4 py-2 hover:bg-[#FF1A1A] hover:text-black transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {status === "connecting" ? "CONNECTING…" : "Connect MetaMask"}
-              </button>
-            )}
+            <div className="flex gap-2">
+              {evmAddress && (
+                <button
+                  onClick={switchWallet}
+                  disabled={status === "connecting"}
+                  className="border border-[#424242] text-white/40 text-xs uppercase tracking-widest px-4 py-2 hover:border-white/30 hover:text-white/60 transition-colors disabled:opacity-40"
+                >
+                  Switch Wallet
+                </button>
+              )}
+              {!evmAddress && (
+                <button
+                  onClick={connectMetaMask}
+                  disabled={status === "connecting" || isContractMissing}
+                  className="border border-[#FF1A1A] text-[#FF1A1A] text-xs uppercase tracking-widest px-4 py-2 hover:bg-[#FF1A1A] hover:text-black transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {status === "connecting" ? "CONNECTING…" : "Connect MetaMask"}
+                </button>
+              )}
+            </div>
           </div>
         )}
 
@@ -481,6 +543,13 @@ export default function AgentNFTPage() {
 
             {/* Actions */}
             <div className="flex gap-3 flex-wrap">
+              <button
+                onClick={switchWallet}
+                disabled={status === "connecting"}
+                className="border border-[#424242] text-white/40 text-xs uppercase tracking-widest px-5 py-2.5 hover:border-white/30 hover:text-white/60 transition-colors disabled:opacity-40"
+              >
+                Switch Wallet
+              </button>
               <button
                 onClick={() => client && loadProfile(client, tokenId)}
                 disabled={status !== "idle"}

@@ -719,11 +719,22 @@ export default function DashboardPage() {
       const openList = open || [];
       // Detect new matches for toast notification
       if (knownMatchIdsRef.current === null) {
-        // First load — seed known IDs, no toast
+        // First load — seed known IDs, but toast any match created < 60s ago
         knownMatchIdsRef.current = new Set(openList.map((m: any) => m.id));
+        const now = Date.now();
+        const recentMatch = openList.find((m: any) => {
+          const created = new Date(m.created_at).getTime();
+          return now - created < 60_000;
+        });
+        if (recentMatch) {
+          setMatchToast(recentMatch);
+          setTimeout(() => setMatchToast((prev: any) => prev?.id === recentMatch.id ? null : prev), 5000);
+        }
       } else {
-        const newMatch = openList.find((m: any) => !knownMatchIdsRef.current!.has(m.id));
-        if (newMatch) {
+        const newMatches = openList.filter((m: any) => !knownMatchIdsRef.current!.has(m.id));
+        if (newMatches.length > 0) {
+          const newMatch = newMatches[0];
+          console.log("[toast] new match detected:", newMatch.id);
           setMatchToast(newMatch);
           setTimeout(() => setMatchToast((prev: any) => prev?.id === newMatch.id ? null : prev), 5000);
         }
@@ -796,10 +807,10 @@ export default function DashboardPage() {
     if (tab === "leaderboard") loadLeaderboard();
   }, [tab, profile?.id, loadArenaMatches, loadLeaderboard]);
 
-  // Poll for new matches every 15s (detects new matches for toast on any tab)
+  // Poll for new matches every 5s (detects new matches for toast on any tab)
   useEffect(() => {
     if (!profile?.id) return;
-    const interval = setInterval(() => loadArenaMatches(true), 15000);
+    const interval = setInterval(() => loadArenaMatches(true), 5000);
     return () => clearInterval(interval);
   }, [profile?.id, loadArenaMatches]);
 
