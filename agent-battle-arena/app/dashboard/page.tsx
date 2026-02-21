@@ -97,6 +97,8 @@ export default function DashboardPage() {
   const [arenaLoading, setArenaLoading] = useState(false);
   const [arenaAction, setArenaAction] = useState<string | null>(null);
   const [spectatingMatch, setSpectatingMatch] = useState<string | null>(null);
+  const [matchToast, setMatchToast] = useState<any | null>(null);
+  const knownMatchIdsRef = useRef<Set<string>>(new Set());
   const [spectatorFullscreen, setSpectatorFullscreen] = useState(false);
   const [stakeAmount, setStakeAmount] = useState("all");
   const [maxTurns, setMaxTurns] = useState("all");
@@ -714,7 +716,17 @@ export default function DashboardPage() {
         .neq("created_by", profile.id)
         .order("created_at", { ascending: false })
         .limit(20);
-      setArenaMatches(open || []);
+      const openList = open || [];
+      // Detect new matches for toast notification
+      if (knownMatchIdsRef.current.size > 0) {
+        const newMatch = openList.find((m: any) => !knownMatchIdsRef.current.has(m.id));
+        if (newMatch) {
+          setMatchToast(newMatch);
+          setTimeout(() => setMatchToast((prev: any) => prev?.id === newMatch.id ? null : prev), 5000);
+        }
+      }
+      openList.forEach((m: any) => knownMatchIdsRef.current.add(m.id));
+      setArenaMatches(openList);
 
       // My matches (active or waiting that I created, or finished recently)
       const { data: myPlayers } = await supabase
@@ -780,6 +792,13 @@ export default function DashboardPage() {
     if ((tab === "arena" || tab === "agent") && profile?.id) loadArenaMatches();
     if (tab === "leaderboard") loadLeaderboard();
   }, [tab, profile?.id, loadArenaMatches, loadLeaderboard]);
+
+  // Poll for new matches every 15s (detects new matches for toast on any tab)
+  useEffect(() => {
+    if (!profile?.id) return;
+    const interval = setInterval(loadArenaMatches, 15000);
+    return () => clearInterval(interval);
+  }, [profile?.id, loadArenaMatches]);
 
   useEffect(() => {
     if (!spectatingMatch) return;
@@ -2045,6 +2064,48 @@ ${skillsForOpenClaw}
           </div>
         )}
       </div>
+
+      {/* ── New match toast notification ── */}
+      {matchToast && (
+        <div className="fixed top-6 right-6 z-50 animate-in slide-in-from-right fade-in duration-300">
+          <div className="border border-[#FF1A1A]/40 bg-[#0a0a0a] shadow-[0_0_20px_rgba(255,26,26,0.15)] p-4 max-w-sm">
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div>
+                <p className="font-mono text-xs uppercase tracking-wider text-[#FF1A1A] font-bold">New Match Available</p>
+                <p className="font-mono text-[10px] text-white/40 mt-1">
+                  {(matchToast as any)?.profiles?.display_name || "Someone"} is looking for an opponent
+                </p>
+              </div>
+              <button
+                onClick={() => setMatchToast(null)}
+                className="text-white/20 hover:text-white/50 text-xs shrink-0"
+              >
+                X
+              </button>
+            </div>
+            <div className="flex items-center gap-3 mb-3">
+              {Number((matchToast as any)?.stake_amount || 0) > 0 && (
+                <span className="font-mono text-[10px] text-white/50 border border-[#333] px-2 py-0.5">
+                  {Number((matchToast as any).stake_amount)} HBAR
+                </span>
+              )}
+              <span className="font-mono text-[10px] text-white/50 border border-[#333] px-2 py-0.5">
+                {(matchToast as any)?.max_turns || 30} turns
+              </span>
+            </div>
+            <button
+              onClick={() => {
+                setTab("arena");
+                setMatchToast(null);
+                handleJoinArenaMatch((matchToast as any).id);
+              }}
+              className="w-full font-mono uppercase text-xs tracking-wider py-2 bg-[#FF1A1A] text-black font-bold hover:bg-[#e61515] transition-colors"
+            >
+              Join Match
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

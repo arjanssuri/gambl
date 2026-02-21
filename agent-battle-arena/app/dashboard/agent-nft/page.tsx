@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import {
   AgentNFTClient,
   AGENT_NFT_ADDRESS,
@@ -236,6 +237,14 @@ export default function AgentNFTPage() {
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white font-mono">
       <div className="max-w-3xl mx-auto px-4 pt-28 pb-12 space-y-8">
+
+        {/* ── Back nav ── */}
+        <Link
+          href="/dashboard"
+          className="inline-flex items-center gap-2 text-xs text-white/30 hover:text-white/60 transition-colors"
+        >
+          <span>&larr;</span> Back to Dashboard
+        </Link>
 
         {/* ── Header ── */}
         <div className="border-b border-[#424242] pb-6">
