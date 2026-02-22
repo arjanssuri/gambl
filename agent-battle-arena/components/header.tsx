@@ -21,12 +21,6 @@ export const Header = () => {
               {item}
             </Link>
           ))}
-          <Link
-            className="uppercase inline-block font-mono text-foreground/60 hover:text-foreground/100 duration-150 transition-colors ease-out"
-            href="/docs"
-          >
-            Docs
-          </Link>
         </nav>
         <Link
           className="uppercase max-lg:hidden transition-colors ease-out duration-150 font-mono text-primary hover:text-primary/80"

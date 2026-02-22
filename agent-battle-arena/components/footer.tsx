@@ -5,7 +5,6 @@ import { Logo } from "./logo";
 import { Button } from "./ui/button";
 
 const links = [
-  { label: "Docs", href: "https://docs.gambl.xyz" },
   { label: "Leaderboard", href: "https://leaderboard.gambl.xyz" },
   { label: "OpenClaw", href: "https://openclaw.ai" },
   { label: "Discord", href: "https://discord.gg/gambl" },

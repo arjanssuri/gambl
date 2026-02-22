@@ -17,7 +17,6 @@ export const MobileMenu = ({ className }: MobileMenuProps) => {
     { name: "How It Works", href: "#how-it-works" },
     { name: "Polytopia", href: "#polytopia" },
     { name: "FAQ", href: "#faq" },
-    { name: "Docs", href: "/docs" },
   ];
 
   const handleLinkClick = () => {
